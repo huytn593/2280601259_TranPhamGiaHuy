@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý Bác sĩ - Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Quản lý hồ sơ Bác sĩ</h2>
+        <div>
+            <a th:href="@{/admin/doctors/create}" class="btn btn-success">Thêm Bác sĩ Mới</a>
+            <a th:href="@{/}" class="btn btn-secondary">Về Trang chủ</a>
+        </div>
+    </div>
+    <table class="table table-bordered table-striped bg-white shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Tên Bác sĩ</th>
+                <th>Chuyên khoa</th>
+                <th>Khoa</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="doctor : ${doctors}">
+                <td th:text="${doctor.id}"></td>
+                <td th:text="${doctor.name}"></td>
+                <td th:text="${doctor.specialty}"></td>
+                <td th:text="${doctor.department != null ? doctor.department.name : ''}"></td>
+                <td>
+                    <a th:href="@{/admin/doctors/edit/{id}(id=${doctor.id})}" class="btn btn-sm btn-primary">Sửa</a>
+                    <a th:href="@{/admin/doctors/delete/{id}(id=${doctor.id})}" class="btn btn-sm btn-danger" onclick="return confirm('Bạn có chắc chắn muốn xoá bác sĩ này không?')">Xoá</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

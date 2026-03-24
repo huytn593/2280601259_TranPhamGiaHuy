@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Phòng khám Đa khoa</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-5">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">Clinic App</a>
+        <div class="ms-auto d-flex gap-2 align-items-center">
+            <span sec:authorize="isAuthenticated()" class="text-white me-3">
+                Xin chào, <span sec:authentication="name"></span>!
+            </span>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/doctors}" class="btn btn-outline-light">Quản lý Bác sĩ</a>
+            <a sec:authorize="hasRole('PATIENT')" th:href="@{/my-appointments}" class="btn btn-outline-light">Lịch khám của tôi</a>
+            <a sec:authorize="!isAuthenticated()" th:href="@{/login}" class="btn btn-outline-light">Đăng nhập</a>
+            <a sec:authorize="!isAuthenticated()" th:href="@{/register}" class="btn btn-success">Đăng ký</a>
+            <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" class="m-0">
+                <button type="submit" class="btn btn-danger">Đăng xuất</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Đội ngũ Bác sĩ</h2>
+        <div class="w-25">
+            <input type="text" id="searchInput" class="form-control" placeholder="Tìm kiếm bác sĩ theo tên...">
+        </div>
+    </div>
+    
+    <div class="row row-cols-1 row-cols-md-5 g-4" id="doctorsGrid">
+        <div class="col doctor-card" th:each="doctor : ${doctorPage.content}">
+            <div class="card h-100 shadow-sm border-0">
+                <img th:src="${doctor.image != null and !doctor.image.isEmpty() ? doctor.image : 'https://ui-avatars.com/api/?name=' + doctor.name + '&background=random'}" class="card-img-top" alt="Hinh anh Bac si" style="object-fit: cover; height: 150px;">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title text-primary" th:text="${doctor.name}"></h5>
+                    <p class="card-text mb-4">
+                        <small><strong>Chuyên khoa:</strong> <span th:text="${doctor.specialty}"></span></small><br>
+                        <small><strong>Khoa:</strong> <span th:text="${doctor.department != null ? doctor.department.name : 'N/A'}"></span></small>
+                    </p>
+                    <div class="mt-auto text-center" sec:authorize="hasRole('PATIENT')">
+                        <button class="btn btn-sm btn-primary w-100" th:attr="onclick=|openBookModal(${doctor.id}, '${doctor.name}')|">Đặt lịch</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4 d-flex justify-content-center" th:if="${totalPages > 1}" id="paginationControls">
+        <nav aria-label="Điều hướng phân trang">
+            <ul class="pagination">
+                <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
+                    <a class="page-link" th:href="@{/(page=${currentPage - 1})}">Trang trước</a>
+                </li>
+                <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}" th:classappend="${currentPage == i} ? 'active'">
+                    <a class="page-link" th:href="@{/(page=${i})}" th:text="${i}"></a>
+                </li>
+                <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
+                    <a class="page-link" th:href="@{/(page=${currentPage + 1})}">Trang sau</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="bookModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form th:action="@{/appointments/book}" method="post" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Đặt lịch khám</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="doctorId" id="modalDoctorId">
+        <p>Bạn đang đặt lịch khám với: <strong id="modalDoctorName"></strong></p>
+        <div class="mb-3">
+            <label class="form-label">Chọn ngày và giờ khám</label>
+            <input type="datetime-local" name="date" class="form-control" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Xác nhận Đặt lịch</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huỷ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const bookModal = new bootstrap.Modal(document.getElementById('bookModal'));
+    
+    function openBookModal(id, name) {
+        document.getElementById('modalDoctorId').value = id;
+        document.getElementById('modalDoctorName').innerText = name;
+        bookModal.show();
+    }
+
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        let query = e.target.value;
+        if(query.length === 0) {
+            window.location.reload();
+            return;
+        }
+        
+        document.getElementById('paginationControls').style.display = 'none';
+
+        fetch('/api/doctors/search?name=' + encodeURIComponent(query))
+            .then(res => res.json())
+            .then(data => {
+                const grid = document.getElementById('doctorsGrid');
+                grid.innerHTML = '';
+                
+                data.forEach(doctor => {
+                    const deptStr = doctor.department ? doctor.department.name : 'N/A';
+                    const defaultImg = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(doctor.name) + '&background=random';
+                    const imgSrc = doctor.image ? doctor.image : defaultImg;
+                    
+                    let btnHtml = `<button class="btn btn-sm btn-primary w-100" onclick="openBookModal(${doctor.id}, '${doctor.name}')">Đặt lịch</button>`;
+
+                    const card = `
+                    <div class="col doctor-card">
+                        <div class="card h-100 shadow-sm border-0">
+                            <img src="${imgSrc}" class="card-img-top" style="object-fit: cover; height: 150px;">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title text-primary">${doctor.name}</h5>
+                                <p class="card-text mb-4">
+                                    <small><strong>Chuyên khoa:</strong> ${doctor.specialty}</small><br>
+                                    <small><strong>Khoa:</strong> ${deptStr}</small>
+                                </p>
+                                <div class="mt-auto text-center">
+                                    ${btnHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                    grid.innerHTML += card;
+                });
+            });
+    });
+</script>
+</body>
+</html>
